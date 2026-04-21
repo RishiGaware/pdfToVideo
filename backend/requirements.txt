@@ -1,5 +1,11 @@
 fastapi
-uvicorn[standard]
+uvicorn
 python-multipart
-pydantic
-pydantic-settings
+python-dotenv
+moviepy
+pandas
+numpy
+numpy
+pymupdf
+Pillow
+proglog
