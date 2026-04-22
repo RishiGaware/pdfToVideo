@@ -1,14 +1,14 @@
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import os
-import uuid
 import shutil
-import asyncio
-from app.engine.core import AutomatedTrainingEngine
+import uuid
+import os
+from processor import process_pdf_to_video
 
 app = FastAPI()
 
+# Allow CORS for frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,33 +16,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# In-memory job state
+jobs = {}
+
+# Ensure directories exist
 OUTPUTS_DIR = "outputs"
 TEMP_DIR = "temp"
 os.makedirs(OUTPUTS_DIR, exist_ok=True)
 os.makedirs(TEMP_DIR, exist_ok=True)
 
+# Mount outputs so video is accessible via URL
 app.mount("/outputs", StaticFiles(directory=OUTPUTS_DIR), name="outputs")
 
-jobs = {}
-
-async def run_training_engine(job_id, pdf_path):
+def run_job(job_id, pdf_path):
     output_dir = os.path.join(OUTPUTS_DIR, job_id)
     try:
-        def progress_cb(p, msg):
+        def update_progress(p):
             jobs[job_id]["progress"] = p
-            jobs[job_id]["message"] = msg
-
-        engine = AutomatedTrainingEngine(
-            pdf_path=pdf_path,
-            output_dir=output_dir,
-            progress_callback=progress_cb
-        )
-        # run engine (engine.run is async)
-        video_path = await engine.run()
-        
+            
+        video_path = process_pdf_to_video(pdf_path, output_dir, job_id, update_progress)
         jobs[job_id]["status"] = "completed"
-        # Since we mount outputs/, the static link is:
-        jobs[job_id]["video_url"] = f"/outputs/{job_id}/final_training.mp4"
+        jobs[job_id]["video_url"] = f"/outputs/{job_id}/final.mp4"
     except Exception as e:
         jobs[job_id]["status"] = "failed"
         jobs[job_id]["error"] = str(e)
@@ -58,15 +52,8 @@ async def upload_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(
     with open(pdf_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    jobs[job_id] = {
-        "status": "processing", 
-        "progress": 0, 
-        "message": "Starting engine...", 
-        "filename": file.filename
-    }
-    
-    # We must use a wrapper to run the async function in background
-    background_tasks.add_task(run_training_engine, job_id, pdf_path)
+    jobs[job_id] = {"status": "processing", "progress": 0, "filename": file.filename}
+    background_tasks.add_task(run_job, job_id, pdf_path)
     
     return {"job_id": job_id}
 

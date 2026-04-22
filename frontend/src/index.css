@@ -54,27 +54,38 @@ button:disabled { background: #475569; cursor: not-allowed; }
 
 .progress-container {
   margin: 2rem 0;
+  text-align: left;
+}
+
+.message {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #38bdf8;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.progress-bar-wrapper {
   background: #334155;
   border-radius: 1rem;
-  height: 1.5rem;
-  position: relative;
+  height: 1.2rem;
   overflow: hidden;
+  position: relative;
+  margin-bottom: 0.25rem;
 }
 
 .progress-bar {
-  background: #38bdf8;
+  background: linear-gradient(90deg, #0ea5e9, #38bdf8);
   height: 100%;
-  transition: width 0.3s;
+  transition: width 0.5s ease-in-out;
 }
 
 .progress-container span {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  display: block;
+  text-align: right;
   font-weight: bold;
-  font-size: 0.9rem;
-  color: white;
+  font-size: 0.8rem;
+  color: #94a3b8;
 }
 
 .video-container { margin-top: 2rem; }

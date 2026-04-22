@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import './index.css';
+import React, { useState, useEffect } from "react";
 
-const API_BASE = 'http://localhost:8000';
+import "./index.css";
+
+const API_BASE = "http://localhost:8000";
 
 function App() {
   const [file, setFile] = useState(null);
   const [jobId, setJobId] = useState(null);
   const [status, setStatus] = useState(null);
   const [progress, setProgress] = useState(0);
+  const [message, setMessage] = useState("");
   const [videoUrl, setVideoUrl] = useState(null);
   const [error, setError] = useState(null);
 
@@ -19,37 +21,41 @@ function App() {
     setProgress(0);
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
     try {
-      const res = await fetch(`${API_BASE}/upload`, { method: 'POST', body: formData });
+      const res = await fetch(`${API_BASE}/upload`, {
+        method: "POST",
+        body: formData,
+      });
       const data = await res.json();
       setJobId(data.job_id);
-      setStatus('processing');
+      setStatus("processing");
     } catch (err) {
-      setError('Upload failed');
+      setError("Upload failed");
     }
   };
 
   useEffect(() => {
     let interval;
-    if (jobId && status === 'processing') {
+    if (jobId && status === "processing") {
       interval = setInterval(async () => {
         try {
           const res = await fetch(`${API_BASE}/status/${jobId}`);
           const data = await res.json();
           setProgress(data.progress || 0);
-          if (data.status === 'completed') {
-            setStatus('completed');
+          setMessage(data.message || "");
+          if (data.status === "completed") {
+            setStatus("completed");
             setVideoUrl(`${API_BASE}${data.video_url}`);
             clearInterval(interval);
-          } else if (data.status === 'failed') {
-            setStatus('failed');
+          } else if (data.status === "failed") {
+            setStatus("failed");
             setError(data.error);
             clearInterval(interval);
           }
         } catch (err) {
-          console.error('Polling error', err);
+          console.error("Polling error", err);
         }
       }, 2000);
     }
@@ -58,19 +64,34 @@ function App() {
 
   return (
     <div className="container">
-      <h1>PDF to Video</h1>
-      <p>Simplified Silent Subtitle Generator</p>
-      
+      <h1>Doc Trainer</h1>
+      <p>Automated Document-to-Training Video Engine</p>
+
       <div className="upload-box">
-        <input type="file" accept=".pdf" onChange={(e) => setFile(e.target.files[0])} />
-        <button onClick={handleUpload} disabled={!file || status === 'processing'}>
-          {status === 'processing' ? 'Processing...' : 'Upload & Generate'}
+        <input
+          type="file"
+          accept=".pdf"
+          onChange={(e) => setFile(e.target.files[0])}
+        />
+        <button
+          onClick={handleUpload}
+          disabled={!file || status === "processing"}
+        >
+          {status === "processing"
+            ? "Processing..."
+            : "Upload & Generate Training"}
         </button>
       </div>
 
-      {status === 'processing' && (
+      {status === "processing" && (
         <div className="progress-container">
-          <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+          <div className="message">{message}</div>
+          <div className="progress-bar-wrapper">
+            <div
+              className="progress-bar"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
           <span>{progress}%</span>
         </div>
       )}
@@ -81,7 +102,9 @@ function App() {
         <div className="video-container">
           <h2>Result:</h2>
           <video src={videoUrl} controls autoPlay width="100%" />
-          <a href={videoUrl} download className="download-btn">Download Video</a>
+          <a href={videoUrl} download className="download-btn">
+            Download Video
+          </a>
         </div>
       )}
     </div>

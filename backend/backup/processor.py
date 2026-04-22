@@ -38,41 +38,77 @@ def extract_text(pdf_path):
         text += page.get_text()
     return text
 
-def split_sentences(text):
-    """Basic sentence splitter."""
-    sentences = re.split(r'(?<=[.!?])\s+', text.replace('\n', ' '))
-    return [s.strip() for s in sentences if len(s.strip()) > 5]
+def chunk_text_by_context(text, max_chars=800):
+    """Group sentences into larger paragraph-like chunks for SOP display."""
+    # Split by double newlines first to honor original paragraph structure
+    paragraphs = text.split('\n\n')
+    chunks = []
+    
+    for para in paragraphs:
+        para = para.strip().replace('\n', ' ')
+        if not para: continue
+        
+        # If the paragraph itself is huge, split it into smaller chunks
+        if len(para) > max_chars:
+            raw_sentences = re.split(r'(?<=[.!?])\s+', para)
+            current_chunk = ""
+            for sentence in raw_sentences:
+                if len(current_chunk) + len(sentence) > max_chars and current_chunk:
+                    chunks.append(current_chunk.strip())
+                    current_chunk = sentence
+                else:
+                    current_chunk = (current_chunk + " " + sentence).strip()
+            if current_chunk:
+                chunks.append(current_chunk)
+        else:
+            chunks.append(para)
+    
+    return chunks
+
+def build_segment_clip(text: str):
+    """Build a single silent segment clip (480p for MAX SPEED)."""
+    # 1. Dynamic Duration: Slightly faster reading pace
+    duration = max(3.0, len(text) / 25.0)
+    
+    # 2. Font Scaling: Adjusted for 480p (854x480)
+    font_size = 30
+    if len(text) > 600: font_size = 18
+    elif len(text) > 300: font_size = 24
+
+    # 3. Create TextClip (854x480 Resolution)
+    txt_clip = TextClip(
+        text=text,
+        font_size=font_size,
+        color='black',
+        bg_color='white',
+        size=(854, 480),
+        method='caption',
+        text_align='center'
+    ).with_duration(duration)
+    
+    return txt_clip
 
 def process_pdf_to_video(pdf_path, output_dir, job_id, progress_callback=None):
-    """End-to-end minimal processor (Silent Version)."""
+    """End-to-end minimal processor (Silent Version with Grouped Context)."""
     os.makedirs(output_dir, exist_ok=True)
 
-    # 1. Extract and Split
+    # 1. Extract and Chunk
     text = extract_text(pdf_path)
-    sentences = split_sentences(text)
+    chunks = chunk_text_by_context(text)
     
-    if not sentences:
+    if not chunks:
         raise ValueError("No readable text found in PDF.")
 
     # 2. Use Pandas to manage data
-    df = pd.DataFrame({'text': sentences})
+    df = pd.DataFrame({'text': chunks})
     total = len(df)
     clips = []
 
-    # 3. Create Silent Clips
+    # 3. Create Silent Clips with dynamic logic
     for i, row in df.iterrows():
         try:
-            # Create TextClip
-            txt_clip = TextClip(
-                text=row['text'],
-                font_size=50,
-                color='white',
-                bg_color='black',
-                size=(1280, 720),
-                method='caption'
-            ).with_duration(DEFAULT_DURATION)
-            
-            clips.append(txt_clip)
+            clip = build_segment_clip(row['text'])
+            clips.append(clip)
             
             if progress_callback:
                 progress_callback(int((i + 1) / total * 80)) 
