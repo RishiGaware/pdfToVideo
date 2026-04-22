@@ -10,17 +10,20 @@ class SceneClassifier:
         bullets = slide_data.get("bullets", [])
         content_str = " ".join(bullets)
         
-        # 1. Intro
+        # 1. Intro (Only if it's the start AND has very little content)
+        # This prevents "Title-less" PDFs from hiding their first section's content.
         if topic_index == 0:
-            return "IntroScene"
+            if not bullets and not slide_data.get("tables"):
+                return "IntroScene"
+            # Fallback to ConceptScene if there's actual content to show
         
         # 2. Critical/Warning
         warning_keywords = [r"critical", r"warning", r"important", r"danger", r"hazard", r"must", r"do not"]
         if any(re.search(kw, content_str, re.I) for kw in warning_keywords) or any(re.search(kw, title, re.I) for kw in warning_keywords):
             return "WarningScene"
             
-        # 3. Table
-        if slide_data.get("tables"):
+        # 3. Table (Only if substantial and No Bullets)
+        if slide_data.get("tables") and not bullets:
             return "TableScene"
             
         # 4. Summary

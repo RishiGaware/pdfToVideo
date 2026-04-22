@@ -60,6 +60,13 @@ class AutomatedTrainingEngine:
             self._update_progress(30, "Classifying scenes...")
             scenes = SceneClassifier.to_ir(topics)
 
+            # Stage 3.5: Identify Global Video Title
+            video_title = "Automated Training"
+            for el in elements:
+                if el["type"] == "title":
+                    video_title = el["text"]
+                    break
+            
             # Stage 4: Parallel Synthesis (Audio & Visuals)
             self._update_progress(40, "Synthesizing narration and visuals...")
             
@@ -83,7 +90,7 @@ class AutomatedTrainingEngine:
 
             # Parallel Visuals (Pillow Rendering with Templates)
             async def render_visuals():
-                renderer = SlideRenderer() # Shared instance for caching fonts
+                renderer = SlideRenderer(video_title=video_title) # Shared instance for caching fonts
                 for scene in scenes:
                     img_path = os.path.join(visual_dir, f"slide_{scene['id']}.png")
                     stype = scene["type"]

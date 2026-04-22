@@ -8,7 +8,7 @@ class TrainingContentCleaner:
     
     def __init__(self, doc: fitz.Document):
         self.doc = doc
-        self.header_footers, self.noise_templates = self._identify_noise()
+        self.header_footers, self.noise_templates, self.primary_header = self._identify_noise()
 
     def _normalize(self, text):
         """Normalize text by replacing digits with # for template matching."""
@@ -17,6 +17,7 @@ class TrainingContentCleaner:
     def _identify_noise(self):
         """Detect headers, footers, and page numbers by cross-page repetition."""
         block_counts = Counter()
+        top_marginal_counts = Counter()
         template_counts = Counter()
         potential_noise = set()
         potential_templates = set()
@@ -33,14 +34,16 @@ class TrainingContentCleaner:
             for b in blocks:
                 text = b[4].strip()
                 if not text: continue
-                # Noise is usually at top (0-12%) or bottom (88-100%)
-                is_marginal = b[1] < h * 0.12 or b[3] > h * 0.88
+                # Noise is usually at top (0-15%) or bottom (85-100%)
+                is_marginal = b[1] < h * 0.15 or b[3] > h * 0.85
                 if is_marginal:
                     block_counts[text] += 1
                     template_counts[self._normalize(text)] += 1
+                    # Specifically track top headers
+                    if b[1] < h * 0.15:
+                        top_marginal_counts[text] += 1
 
         # Threshold: if it appears in multiple sample pages relative to doc length
-        # For small docs (2-5 pages), threshold is 2. For larger, it's roughly 1/3 of sample.
         threshold = max(2, len(sample_pages) // 3)
         
         for text, count in block_counts.items():
@@ -51,7 +54,14 @@ class TrainingContentCleaner:
             if count >= threshold:
                 potential_templates.add(template)
         
-        return potential_noise, potential_templates
+        # Determine the primary header (most frequent top noise block)
+        primary_header = None
+        if top_marginal_counts:
+            most_common = top_marginal_counts.most_common(1)[0]
+            if most_common[1] >= threshold:
+                primary_header = most_common[0]
+        
+        return potential_noise, potential_templates, primary_header
 
     def clean_block(self, text, bbox, page_height):
         """Determine if a block should be kept and clean its text."""
@@ -64,20 +74,22 @@ class TrainingContentCleaner:
             
         # 2. Check for normalized noise templates
         if self._normalize(text) in self.noise_templates:
-            # Only remove if it's in the margin (Extra safety for templates)
-            if bbox[1] < page_height * 0.12 or bbox[3] > page_height * 0.88:
-                return None
+            # INCREASED AGGRESSIVENESS:
+            # If it's a structural template found on multiple pages, it is VERY likely noise.
+            # We remove it regardless of margin if it's high confidence.
+            return None
 
         # 3. Check for specific page numbering / common noise patterns
         # Use re.search instead of re.match to catch partial matches in margins
         page_patterns = [
             r'Page\s+\d+', r'\d+\s+of\s+\d+', 
-            r'^Ref\.\s+SOP\s+No\.', r'^\d+$', 
-            r'Confidential', r'Property of'
+            r'Ref\.\s+SOP\s+No\.', r'^\d+$', 
+            r'Confidential', r'Property of',
+            r'INVESTIGATION REPORT', r'DEVIATION No\.'
         ]
         if any(re.search(p, text, re.I) for p in page_patterns):
-            # Only remove if it's in the margin
-            if bbox[1] < page_height * 0.12 or bbox[3] > page_height * 0.88:
+            # Only remove if it's in the margin (Safety for patterns)
+            if bbox[1] < page_height * 0.15 or bbox[3] > page_height * 0.85:
                 return None
 
         # 4. Use ftfy to fix encoding issues and mojibake

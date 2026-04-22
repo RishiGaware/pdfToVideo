@@ -12,7 +12,7 @@ class TopicSegmenter:
     def segment(self):
         topics = []
         current_topic = {
-            "title": "Introduction",
+            "title": None, # Wait for first heading/title to set this
             "content": [],
             "tables": []
         }
@@ -57,6 +57,9 @@ class TopicSegmenter:
     def _clean_topics(self, topics):
         cleaned = []
         for t in topics:
+            if not t["title"]:
+                t["title"] = "Executive Summary" if not cleaned else "General Details"
+
             # If a topic is mostly empty, merge it with previous if it's just a heading
             if not t["content"] and not t["tables"]:
                 if cleaned:

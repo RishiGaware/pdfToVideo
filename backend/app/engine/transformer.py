@@ -3,7 +3,7 @@ import re
 class TrainingTransformer:
     """Transforms raw document text into punchy training bullets."""
     
-    def __init__(self, max_bullets=5, max_words=12):
+    def __init__(self, max_bullets=10, max_words=12):
         self.max_bullets = max_bullets
         self.max_words = max_words
 
@@ -12,8 +12,8 @@ class TrainingTransformer:
         title = topic_data["title"]
         full_text = " ".join(topic_data["content"])
         
-        # 1. Split into sentences
-        sentences = re.split(r'(?<=[.!?])\s+', full_text)
+        # 1. Split into sentences (Ignore dots after common abbreviations like No.)
+        sentences = re.split(r'(?<!\bNo\.)(?<!\bMr\.)(?<!\bDr\.)(?<!\bnos\.)(?<!\bNos\.)(?<!\bBatch No\.)(?<=[.!?])\s+', full_text)
         raw_bullets = [s.strip() for s in sentences if len(s.strip()) > 10]
         
         # 2. Refine bullets (summarization heuristic)
@@ -29,11 +29,8 @@ class TrainingTransformer:
         for i in range(0, len(refined_bullets), self.max_bullets):
             chunk = refined_bullets[i : i + self.max_bullets]
             
-            # Label parts if multiple slides
+            # Title remains identical for all chunks
             part_title = title
-            if len(refined_bullets) > self.max_bullets:
-                part_idx = (i // self.max_bullets) + 1
-                part_title += f" (Part {part_idx})"
                 
             slides.append({
                 "title": part_title,

@@ -89,6 +89,18 @@ class DocumentAnalyzer:
                             "page": page_num,
                             "size": max_size
                         })
+        
+        # PRIMARY TITLE INJECTION
+        # Use the logical header found by the cleaner as the global video title.
+        if self.cleaner.primary_header:
+            elements.insert(0, {
+                "type": "title",
+                "text": self.cleaner.primary_header,
+                "page": 0,
+                "size": self.heading_size * 1.5 # Visual emphasis
+            })
+            logger.info(f"Used primary header as video title: {self.cleaner.primary_header}")
+            
         return elements
 
 class TableAnalyzer:
@@ -102,10 +114,19 @@ class TableAnalyzer:
             for page_num, page in enumerate(pdf.pages):
                 extracted = page.extract_tables()
                 if extracted:
+                    # Simple heuristic to identify layout/header tables
+                    heading_keywords = ["PROBLEM DEFINITION", "OBJECTIVE", "SCOPE", "SUMMARY", "DESCRIPTION"]
+                    
                     for table in extracted:
                         # Filter out empty tables
                         clean_table = [[col or "" for col in row] for row in table if any(row)]
-                        if clean_table:
+                        if not clean_table: continue
+                        
+                        # Check if table represents a layout header (redundant info)
+                        table_str = " ".join([" ".join(row) for row in clean_table]).upper()
+                        is_layout = any(kw in table_str for kw in heading_keywords) and len(clean_table) <= 6
+                        
+                        if not is_layout:
                             tables.append({
                                 "page": page_num,
                                 "data": clean_table
