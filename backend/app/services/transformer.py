@@ -5,7 +5,7 @@ from .utils import FILLER_WORDS_REGEX, COMMON_ABBREVIATIONS, clean_leading_marke
 class TrainingTransformer:
     """Transforms raw document text into punchy training bullets."""
     
-    def __init__(self, max_lines=13, wrap_width=100):
+    def __init__(self, max_lines=26, wrap_width=110):
         self.max_lines = max_lines
         self.wrap_width = wrap_width
         
@@ -45,15 +45,18 @@ class TrainingTransformer:
         current_chunk = []
         current_line_count = 0
         
+        def get_paged_title(idx):
+            return title if idx == 0 else f"{title} (Part {idx + 1})"
+        
         for bullet in refined_bullets:
             bullet_lines = self._estimate_lines(bullet) + 1 # +1 for the margin/spacing between bullets
             
             # If adding this bullet exceeds the budget, close the current slide
             if current_line_count + bullet_lines > self.max_lines and current_chunk:
                 slides.append({
-                    "title": title,
+                    "title": get_paged_title(len(slides)),
                     "bullets": current_chunk,
-                    "has_tables": False, # Tables handled in first slide usually
+                    "has_tables": False,
                     "tables": []
                 })
                 current_chunk = []
@@ -62,25 +65,32 @@ class TrainingTransformer:
             current_chunk.append(bullet)
             current_line_count += bullet_lines
             
-        # Add final chunk
+        # Add final text chunk
         if current_chunk:
-            # Handle tables (usually put them in the first slide of the topic)
-            has_tables = len(topics_tables := topic_data.get("tables", [])) > 0
-            
             slides.append({
-                "title": title,
+                "title": get_paged_title(len(slides)),
                 "bullets": current_chunk,
-                "has_tables": has_tables if len(slides) == 0 else False,
-                "tables": topics_tables if len(slides) == 0 else []
+                "has_tables": False,
+                "tables": []
             })
             
-        # Fallback for topics with no sentences (e.g. just a heading or table)
+        # 4. Handle Tables as Dedicated Slides (Preserving original format)
+        tables = topic_data.get("tables", [])
+        for table in tables:
+            slides.append({
+                "title": title,
+                "bullets": [],
+                "has_tables": True,
+                "tables": [table]
+            })
+            
+        # Fallback for topics with nothing
         if not slides:
             slides.append({
                 "title": title,
-                "bullets": ["Module details provided in visual.", "Review document for context."] if not topic_data["tables"] else [],
-                "has_tables": len(topic_data.get("tables", [])) > 0,
-                "tables": topic_data.get("tables", [])
+                "bullets": ["Review document for visual context."] if not tables else [],
+                "has_tables": len(tables) > 0,
+                "tables": tables
             })
             
         return slides

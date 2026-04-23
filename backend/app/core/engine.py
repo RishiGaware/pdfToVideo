@@ -34,10 +34,11 @@ class MoviePyProgressLogger(ProgressBarLogger):
 class AutomatedTrainingEngine:
     """The central orchestrator for the Intelligent Document-to-Video Engine (IDVE)."""
     
-    def __init__(self, pdf_path, output_dir, progress_callback=None):
+    def __init__(self, pdf_path, output_dir, progress_callback=None, original_filename=None):
         self.pdf_path = pdf_path
         self.output_dir = output_dir
         self.progress_callback = progress_callback
+        self.original_filename = original_filename
         os.makedirs(output_dir, exist_ok=True)
 
     async def run(self):
@@ -50,6 +51,9 @@ class AutomatedTrainingEngine:
             
             table_analyzer = await asyncio.to_thread(TableAnalyzer, self.pdf_path)
             tables = await asyncio.to_thread(table_analyzer.get_tables)
+            
+            # Release file early to avoid Windows lock issues
+            await asyncio.to_thread(analyzer.close)
 
             # Stage 2: Segmentation
             self._update_progress(20, "Segmenting into logical topics...")
@@ -71,15 +75,13 @@ class AutomatedTrainingEngine:
                     step["bullets"] = step["bullets_to_show"]
                     atomic_steps.append(step)
 
-            # Stage 3.5: Identify Global Video Title
-            video_title = "Automated Training"
-            for el in elements:
-                if el["type"] == "title":
-                    video_title = el["text"]
-                    break
+            # Stage 3.5: Identify Global Video Title (From Original Filename)
+            filename = self.original_filename or os.path.basename(self.pdf_path)
+            video_title = os.path.splitext(filename)[0]
+            self._update_progress(35, f"Setting video title: {video_title}")
             
-            # Stage 4: Parallel Synthesis (Audio & Visuals)
-            self._update_progress(40, "Synthesizing narration and visuals...")
+            # Stage 4: Parallel Synthesis (Audio & Visuals for every step)
+            self._update_progress(40, "Synthesizing narration and animation...")
             
             audio_dir = os.path.join(self.output_dir, "audio")
             visual_dir = os.path.join(self.output_dir, "slides")
@@ -147,14 +149,19 @@ class AutomatedTrainingEngine:
         render_logger = MoviePyProgressLogger(self._update_progress)
         
         # MoviePy's write_videofile is EXTREMELY blocking. Offload it entirely.
+        # On Windows, using a specific temp_audiofile prevents 'File in use' errors.
+        temp_audio = os.path.join(self.output_dir, "temp_render_audio.m4a")
+        
         await asyncio.to_thread(
             final_video.write_videofile,
             final_path, 
             fps=12, 
             codec="libx264", 
             audio_codec="aac",
+            temp_audiofile=temp_audio,
+            remove_temp=True,
             preset="ultrafast",
-            threads=4, # Use more threads for speed
+            threads=1, # Single thread is safer on Windows for the final muxing stage
             logger=render_logger
         )
         

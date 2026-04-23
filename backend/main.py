@@ -27,6 +27,7 @@ jobs = {}
 
 async def run_training_engine(job_id, pdf_path):
     output_dir = os.path.join(OUTPUTS_DIR, job_id)
+    original_filename = jobs[job_id].get("filename")
     try:
         def progress_cb(p, msg):
             jobs[job_id]["progress"] = p
@@ -35,7 +36,8 @@ async def run_training_engine(job_id, pdf_path):
         engine = AutomatedTrainingEngine(
             pdf_path=pdf_path,
             output_dir=output_dir,
-            progress_callback=progress_cb
+            progress_callback=progress_cb,
+            original_filename=original_filename
         )
         # run engine (engine.run is async)
         video_path = await engine.run()

@@ -12,45 +12,58 @@ class TopicSegmenter:
     def segment(self):
         topics = []
         current_topic = {
-            "title": None, # Wait for first heading/title to set this
+            "title": None,
             "content": [],
-            "tables": []
+            "tables": [],
+            "heading_page": 0
         }
 
-        # Index tables by page for easy lookup
-        tables_by_page = {}
-        for t in self.tables:
-            page = t["page"]
-            if page not in tables_by_page:
-                tables_by_page[page] = []
-            tables_by_page[page].append(t["data"])
-
+        # Phase 1: Build topics from text elements only (no table assignment yet)
         for el in self.elements:
-            # Topic boundary trigger: Hard headings
-            if el["type"] in ["title", "heading"] and len(current_topic["content"]) > 0:
-                topics.append(current_topic)
-                current_topic = {
-                    "title": el["text"],
-                    "content": [],
-                    "tables": []
-                }
-                # Add tables from this page if not added already
-                if el["page"] in tables_by_page:
-                    current_topic["tables"].extend(tables_by_page[el["page"]])
-                    del tables_by_page[el["page"]] # Avoid duplicates
+            if el["type"] in ["title", "heading"]:
+                # Trigger topic boundary if we already have a title or we have content
+                if current_topic["title"] is not None or len(current_topic["content"]) > 0:
+                    topics.append(current_topic)
+                    current_topic = {
+                        "title": None,
+                        "content": [],
+                        "tables": [],
+                        "heading_page": el["page"],
+                        "heading_y": el.get("bbox", [0, 0])[1]  # Store y-pos
+                    }
+                current_topic["title"] = el["text"]
+                current_topic["heading_page"] = el["page"]
+                current_topic["heading_y"] = el.get("bbox", [0, 0])[1]
+            elif el["type"] == "subheading":
+                current_topic["content"].append(f"▸ {el['text']}:")
             else:
-                if el["type"] in ["title", "heading"]:
-                    current_topic["title"] = el["text"]
-                else:
-                    current_topic["content"].append(el["text"])
-                    
-                    # Check for tables on this page
-                    if el["page"] in tables_by_page:
-                        current_topic["tables"].extend(tables_by_page[el["page"]])
-                        del tables_by_page[el["page"]]
+                current_topic["content"].append(el["text"])
 
-        if current_topic["content"] or current_topic["tables"]:
+        if current_topic["content"] or current_topic["title"]:
             topics.append(current_topic)
+
+        # Phase 2: Assign each table to its closest preceding topic
+        sorted_tables = sorted(self.tables, key=lambda t: (t["page"], t["bbox"][1]))
+        
+        for table in sorted_tables:
+            t_page = table["page"]
+            t_y = table["bbox"][1]
+            
+            best_idx = 0
+            for i, topic in enumerate(topics):
+                if topic["heading_page"] < t_page:
+                    best_idx = i
+                elif topic["heading_page"] == t_page and topic.get("heading_y", 0) <= t_y:
+                    best_idx = i
+                elif topic["heading_page"] > t_page:
+                    break
+            
+            topics[best_idx]["tables"].append(table["data"])
+
+        # Clean up the tracking fields
+        for t in topics:
+            t.pop("heading_page", None)
+            t.pop("heading_y", None)
 
         # Merge tiny topics (e.g. just a heading with no content)
         return self._clean_topics(topics)
@@ -59,14 +72,16 @@ class TopicSegmenter:
         cleaned = []
         for t in topics:
             if not t["title"]:
+                # If it's the very first topic and has no real title/content, ignore it
+                if not cleaned and not t["content"] and not t["tables"]:
+                    continue
                 t["title"] = "Executive Summary" if not cleaned else "General Details"
 
-            # If a topic is mostly empty, merge it with previous if it's just a heading
+            # If a topic is mostly empty, merge it with previous or discard
             if not t["content"] and not t["tables"]:
                 if cleaned:
                     cleaned[-1]["title"] += " - " + t["title"]
-                else:
-                    cleaned.append(t)
+                # Else: just discard an empty first topic
             else:
                 cleaned.append(t)
         return cleaned

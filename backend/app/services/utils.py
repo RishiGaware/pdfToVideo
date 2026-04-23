@@ -22,8 +22,22 @@ COMMON_ABBREVIATIONS = {
 FILLER_WORDS_REGEX = r'^(Therefore|Additionally|Furthermore|In addition|Generally|Notably|It should be noted that|Please note that|Observe that)\s*,?\s*'
 
 # 3. DOCUMENT NOISE
-# Layout artifacts to ignore during extraction
+# Exclusion zones for headers and footers (as % of page height)
+HEADER_ZONE_PERCENT = 0.25  # Top 25% of page ignored (SOP header table)
+FOOTER_ZONE_PERCENT = 0.10  # Bottom 10% of page ignored
+
 DOCUMENT_NOISE_PATTERNS = [
+    r'Page \d+ of \d+',
+    r'SOP No\.?:',
+    r'Revision Number:',
+    r'Effective Date:',
+    r'Review Period:',
+    r'Sign & Date',
+    r'Designation',
+    r'Prepared By',
+    r'Reviewed By',
+    r'Approved By',
+    r'GAMP Services',
     r'Page\s+\d+', 
     r'\d+\s+of\s+\d+', 
     r'Ref\.\s+SOP\s+No\.', 
@@ -31,7 +45,13 @@ DOCUMENT_NOISE_PATTERNS = [
     r'Confidential', 
     r'Property of',
     r'INVESTIGATION REPORT', 
-    r'DEVIATION No\.'
+    r'DEVIATION No\.',
+    r'STANDARD OPERATING PROCEDURE',
+    r'PREPARED BY',
+    r'APPROVED BY',
+    r'REVIEWED BY',
+    r'REVISION NUMBER',
+    r'DOC\.?\s*NO'
 ]
 
 def normalize_for_speech(text: str) -> str:
