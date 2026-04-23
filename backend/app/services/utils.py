@@ -5,6 +5,7 @@ import re
 # and AudioEngine (for speech normalization)
 COMMON_ABBREVIATIONS = {
     r'\bNo\.': 'Number ',
+    r'\bNos\.': 'Nos ',
     r'\bSr\.': 'Serial ',
     r'\bRef\.': 'Reference ',
     r'\bDr\.': 'Doctor ',
@@ -59,7 +60,12 @@ def normalize_for_speech(text: str) -> str:
     for symbol, spoken in symbols.items():
         text = text.replace(symbol, spoken)
 
-    # 3. Emphasis markers
+    # 3. Handle alphanumeric codes (e.g. IR-QA-012)
+    # Replaces dash with space if between alpha-numeric characters 
+    # to prevent the "punctuation pause"
+    text = re.sub(r'([A-Za-z0-9])-([A-Za-z0-9])', r'\1 \2', text)
+
+    # 4. Emphasis markers
     text = text.replace("Important:", "Important point: ")
     text = text.replace("Note:", "Please note: ")
     text = text.replace("NB:", "Note well: ")

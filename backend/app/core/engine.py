@@ -56,9 +56,20 @@ class AutomatedTrainingEngine:
             segmenter = TopicSegmenter(elements, tables)
             topics = await asyncio.to_thread(segmenter.segment)
 
-            # Stage 3: Classification & IR
-            self._update_progress(30, "Classifying scenes...")
+            # Stage 3: Classification & IR (Expanded into atomic steps)
+            self._update_progress(30, "Preparing animation steps...")
             scenes = SceneClassifier.to_ir(topics)
+            
+            # Flatten all steps across all scenes for parallel processing
+            atomic_steps = []
+            for scene in scenes:
+                for step in scene["steps"]:
+                    # Attach metadata for renderer selection
+                    step["type"] = scene["type"]
+                    step["title"] = scene["title"]
+                    # Renderer expects 'bullets' key for content
+                    step["bullets"] = step["bullets_to_show"]
+                    atomic_steps.append(step)
 
             # Stage 3.5: Identify Global Video Title
             video_title = "Automated Training"
@@ -75,25 +86,25 @@ class AutomatedTrainingEngine:
             os.makedirs(audio_dir, exist_ok=True)
             os.makedirs(visual_dir, exist_ok=True)
 
-            total_assets = len(scenes) * 2
+            total_assets = len(atomic_steps) * 2
             completed_assets = 0
 
             def on_asset_done():
                 nonlocal completed_assets
                 completed_assets += 1
                 pct = 40 + int((completed_assets / total_assets) * 40)
-                self._update_progress(pct, f"Preparing scene assets ({completed_assets}/{total_assets})...")
+                self._update_progress(pct, f"Preparing animations ({completed_assets}/{total_assets})...")
 
-            # Parallel Audio
+            # Parallel Audio for all steps
             audio_engine = AudioEngine()
-            audio_task = audio_engine.batch_generate(scenes, audio_dir, on_asset_done)
+            audio_task = audio_engine.batch_generate(atomic_steps, audio_dir, on_asset_done)
 
-            # Parallel Visuals (Pillow Rendering in Parallel)
-            async def render_scene_visual(scene, renderer, visual_dir, on_asset_done):
-                img_path = os.path.join(visual_dir, f"slide_{scene['id']}.png")
-                stype = scene["type"]
+            # Parallel Visuals for all steps
+            async def render_step_visual(step, renderer, visual_dir, on_asset_done):
+                img_path = os.path.join(visual_dir, f"step_{step['id']}.png")
+                stype = step["type"]
                 
-                # Template selection logic (Uniform minimalist style)
+                # Selection logic
                 if stype == "IntroScene":
                     render_func = renderer.render_title_slide
                 elif stype == "TableScene":
@@ -101,19 +112,18 @@ class AutomatedTrainingEngine:
                 else:
                     render_func = renderer.render_training_slide
                     
-                await asyncio.to_thread(render_func, scene, img_path)
-                scene["image_path"] = img_path
+                await asyncio.to_thread(render_func, step, img_path)
+                step["image_path"] = img_path
                 on_asset_done()
 
-            # Create shared renderer for font caching
             renderer = SlideRenderer(video_title=video_title)
-            visual_tasks = [render_scene_visual(s, renderer, visual_dir, on_asset_done) for s in scenes]
+            visual_tasks = [render_step_visual(s, renderer, visual_dir, on_asset_done) for s in atomic_steps]
 
             await asyncio.gather(audio_task, *visual_tasks)
 
-            # Stage 5: Assembly (Move MoviePy render to thread)
-            self._update_progress(80, "Assembling final training video...")
-            video_path = await self._assemble(scenes)
+            # Stage 5: Assembly
+            self._update_progress(80, "Stitching animation steps...")
+            video_path = await self._assemble(atomic_steps)
             
             self._update_progress(100, "Success! Video ready.")
             return video_path
@@ -121,10 +131,10 @@ class AutomatedTrainingEngine:
             logger.error(f"Engine failure: {e}")
             raise
 
-    async def _assemble(self, scenes):
-        """Assembles clips into final MP4 (Non-blocking)."""
+    async def _assemble(self, steps):
+        """Assembles atomic animation steps into final MP4."""
         clips = []
-        for s in scenes:
+        for s in steps:
             audio = AudioFileClip(s["audio_path"])
             image = ImageClip(s["image_path"]).with_duration(audio.duration)
             clip = image.with_audio(audio)

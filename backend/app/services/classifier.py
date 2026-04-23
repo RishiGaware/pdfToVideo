@@ -30,7 +30,7 @@ class SceneClassifier:
 
     @staticmethod
     def to_ir(topics):
-        """Converts raw topics into a sequence of training-ready slides (SIR)."""
+        """Converts raw topics into a sequence of training-ready slides with atomic steps."""
         scene_list = []
         transformer = TrainingTransformer()
         total_topics = len(topics)
@@ -43,33 +43,35 @@ class SceneClassifier:
             for chunk in slide_chunks:
                 stype = SceneClassifier.classify_type(chunk, t_idx, total_topics)
                 
-                # Narration for this specific slide chunk
-                narration = SceneClassifier._prepare_narration(chunk)
+                # Each slide chunk is broken into atomic visual/audio steps
+                steps = []
+                bullets = chunk.get("bullets", [])
+                
+                # Step 0: Introduce the slide title
+                steps.append({
+                    "id": f"{global_idx}_0",
+                    "narration": f"{chunk['title']}.",
+                    "bullets_to_show": [],
+                    "has_tables": chunk.get("has_tables", False),
+                    "tables": chunk.get("tables", [])
+                })
+                
+                # Steps 1-N: Narrate each bullet as it appears
+                for b_idx, bullet in enumerate(bullets):
+                    steps.append({
+                        "id": f"{global_idx}_{b_idx+1}",
+                        "narration": f"{bullet}.",
+                        "bullets_to_show": bullets[:b_idx+1],
+                        "has_tables": chunk.get("has_tables", False),
+                        "tables": chunk.get("tables", [])
+                    })
                 
                 scene_list.append({
                     "id": global_idx,
                     "title": chunk["title"],
                     "type": stype,
-                    "bullets": chunk["bullets"],
-                    "tables": chunk["tables"],
-                    "narration": narration
+                    "steps": steps
                 })
                 global_idx += 1
                 
         return scene_list
-
-    @staticmethod
-    def _prepare_narration(slide_chunk):
-        """Generates narration text for a specific slide chunk."""
-        title = slide_chunk["title"]
-        bullets = slide_chunk["bullets"]
-        
-        if not bullets:
-            return f"Now let's look at {title}."
-            
-        narration = f"{title}. "
-        for b in bullets:
-            # Re-read bullets naturally
-            narration += f"{b}. "
-            
-        return narration.strip()

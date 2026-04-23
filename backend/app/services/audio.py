@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class AudioEngine:
     """Generates narration using Edge-TTS in an asynchronous manner."""
 
-    def __init__(self, voice="en-IN-NeerjaNeural"):
+    def __init__(self, voice="en-IN-PrabhatNeural"):
         self.voice = voice
         self.rate = "+0%"
         self.semaphore = asyncio.Semaphore(10)
@@ -32,7 +32,10 @@ class AudioEngine:
         # --- STEP 5: Keep useful punctuation ---
         text = re.sub(r'[^a-zA-Z0-9\s\.\,\?\!\-\:\(\)%]', ' ', text)
 
-        # --- STEP 6: Normalize spaces ---
+        # --- STEP 6: Add natural pauses for commas ---
+        text = text.replace(',', ', ...')
+
+        # --- STEP 7: Normalize spaces ---
         text = re.sub(r'\s+', ' ', text).strip()
 
         # --- STEP 8: Fallback ---
