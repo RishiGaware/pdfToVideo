@@ -3,7 +3,7 @@ import pdfplumber
 from collections import Counter
 import logging
 import re
-from app.engine.cleaner import TrainingContentCleaner
+from app.services.cleaner import TrainingContentCleaner
 
 logger = logging.getLogger(__name__)
 
@@ -71,18 +71,18 @@ class DocumentAnalyzer:
                         score = 0
                         if max_size > body_size * 1.15: score += 2 # Strong size signal
                         if is_bold: score += 1
-                        if is_all_caps: score += 0.5
+                        if is_all_caps: score += 1.5 # Boosted for capitalized sections
                         if has_colon: score += 1
                         
                         # Titles are extra large
                         if max_size > self.heading_size * 1.1:
                             etype = "title"
                         # Headings must be punchy (not too long)
-                        elif score >= 1.5 and len(cleaned_text.split()) < 12:
+                        elif score >= 1.5 and len(cleaned_text.split()) < 15:
                             etype = "heading"
                         elif abs(max_size - self.heading_size) < 1.0:
                             etype = "heading"
-
+                        
                         elements.append({
                             "type": etype,
                             "text": cleaned_text,

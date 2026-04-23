@@ -43,6 +43,7 @@ class TopicSegmenter:
                     current_topic["title"] = el["text"]
                 else:
                     current_topic["content"].append(el["text"])
+                    
                     # Check for tables on this page
                     if el["page"] in tables_by_page:
                         current_topic["tables"].extend(tables_by_page[el["page"]])

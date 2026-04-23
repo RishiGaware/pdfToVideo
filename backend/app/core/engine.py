@@ -1,11 +1,11 @@
 import asyncio
 import os
 from moviepy import ImageClip, AudioFileClip, concatenate_videoclips
-from app.engine.analyzer import DocumentAnalyzer, TableAnalyzer
-from app.engine.segmenter import TopicSegmenter
-from app.engine.classifier import SceneClassifier
-from app.engine.audio import AudioEngine
-from app.renderers.slide_renderer import SlideRenderer
+from app.services.analyzer import DocumentAnalyzer, TableAnalyzer
+from app.services.segmenter import TopicSegmenter
+from app.services.classifier import SceneClassifier
+from app.services.audio import AudioEngine
+from app.services.renderer import SlideRenderer
 import logging
 
 logger = logging.getLogger(__name__)
@@ -88,28 +88,28 @@ class AutomatedTrainingEngine:
             audio_engine = AudioEngine()
             audio_task = audio_engine.batch_generate(scenes, audio_dir, on_asset_done)
 
-            # Parallel Visuals (Pillow Rendering with Templates)
-            async def render_visuals():
-                renderer = SlideRenderer(video_title=video_title) # Shared instance for caching fonts
-                for scene in scenes:
-                    img_path = os.path.join(visual_dir, f"slide_{scene['id']}.png")
-                    stype = scene["type"]
+            # Parallel Visuals (Pillow Rendering in Parallel)
+            async def render_scene_visual(scene, renderer, visual_dir, on_asset_done):
+                img_path = os.path.join(visual_dir, f"slide_{scene['id']}.png")
+                stype = scene["type"]
+                
+                # Template selection logic (Uniform minimalist style)
+                if stype == "IntroScene":
+                    render_func = renderer.render_title_slide
+                elif stype == "TableScene":
+                    render_func = renderer.render_table_slide
+                else:
+                    render_func = renderer.render_training_slide
                     
-                    # Template selection logic
-                    if stype == "IntroScene":
-                        render_func = renderer.render_title_slide
-                    elif stype == "WarningScene":
-                        render_func = renderer.render_warning_slide
-                    elif stype == "TableScene":
-                        render_func = renderer.render_table_slide
-                    else:
-                        render_func = renderer.render_training_slide
-                        
-                    await asyncio.to_thread(render_func, scene, img_path)
-                    scene["image_path"] = img_path
-                    on_asset_done()
+                await asyncio.to_thread(render_func, scene, img_path)
+                scene["image_path"] = img_path
+                on_asset_done()
 
-            await asyncio.gather(audio_task, render_visuals())
+            # Create shared renderer for font caching
+            renderer = SlideRenderer(video_title=video_title)
+            visual_tasks = [render_scene_visual(s, renderer, visual_dir, on_asset_done) for s in scenes]
+
+            await asyncio.gather(audio_task, *visual_tasks)
 
             # Stage 5: Assembly (Move MoviePy render to thread)
             self._update_progress(80, "Assembling final training video...")
@@ -130,7 +130,7 @@ class AutomatedTrainingEngine:
             clip = image.with_audio(audio)
             clips.append(clip)
         
-        final_video = concatenate_videoclips(clips, method="compose")
+        final_video = concatenate_videoclips(clips) # method="compose" is slow and unnecessary for same-size slides
         final_path = os.path.join(self.output_dir, "final_training.mp4")
         
         # Mapping 80-100% progress

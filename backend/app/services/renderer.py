@@ -12,7 +12,7 @@ class SlideRenderer:
         # Color Palette (Corporate Training)
         self.COLORS = {
             "bg": "#FFFFFF",
-            "primary": "#0f172a",    # Dark Slate
+            "primary": "#127c96",    # Professional Navy Blue (Lighter than before)
             "accent": "#38bdf8",     # Sky Blue
             "text": "#334155",       # Slate
             "warning": "#ef4444",    # Red
@@ -22,25 +22,27 @@ class SlideRenderer:
         # Load Professional Fonts
         try:
             self.font_title = ImageFont.truetype("arialbd.ttf", 40)   # For Intro Slide
-            self.font_video_title = ImageFont.truetype("arialbd.ttf", 22) # For Header Bar
+            self.font_video_title = ImageFont.truetype("arialbd.ttf", 20) # For Header Bar
             self.font_header = ImageFont.truetype("arialbd.ttf", 20)  # For Slide Heading
             self.font_body = ImageFont.truetype("arial.ttf", 18)      # For Content
+            self.font_sub = ImageFont.truetype("arial.ttf", 16)       # Small subtitles
         except:
             self.font_title = ImageFont.load_default()
             self.font_video_title = ImageFont.load_default()
             self.font_header = ImageFont.load_default()
             self.font_body = ImageFont.load_default()
+            self.font_sub = ImageFont.load_default()
 
     def _draw_base_template(self, draw):
-        """Draw the common branding bar and background with auto-scaling title."""
+        """Draw the compact branding bar and background."""
         title = self.video_title
-        # Branding Bar
-        draw.rectangle([0, 0, self.width, 100], fill=self.COLORS["primary"])
-        draw.rectangle([0, 100, self.width, 105], fill=self.COLORS["accent"])
+        # Compact Branding Bar (Height reduced to 70px)
+        draw.rectangle([0, 0, self.width, 70], fill=self.COLORS["primary"])
+        draw.rectangle([0, 70, self.width, 74], fill=self.COLORS["accent"])
         
-        # Title in Header (Fixed small size)
+        # Title in Header (Repositioned for compact bar)
         header_font = self.font_video_title
-        draw.text((60, 35), title, fill="#FFFFFF", font=header_font)
+        draw.text((60, 20), title, fill="#FFFFFF", font=header_font)
 
     def render_title_slide(self, scene_data, output_path):
         """A professional intro/title slide with multi-line wrapping."""
@@ -87,7 +89,7 @@ class SlideRenderer:
         wrap_width = max(15, (self.width - 150) // char_width)
         title_lines = textwrap.wrap(slide_title, width=wrap_width)
         
-        y_offset = 130
+        y_offset = 100
         for line in title_lines:
             draw.text((60, y_offset), line, fill=self.COLORS["primary"], font=self.font_header)
             y_offset += 40
@@ -113,24 +115,6 @@ class SlideRenderer:
         img.save(output_path)
         return output_path
 
-    def render_warning_slide(self, scene_data, output_path):
-        """Critical/Warning slide with red highlights."""
-        img = Image.new('RGB', (self.width, self.height), color="#fff1f2") # Very light red bg
-        draw = ImageDraw.Draw(img)
-        
-        # Warning Header
-        draw.rectangle([0, 0, self.width, 100], fill=self.COLORS["warning"])
-        draw.text((60, 25), "CRITICAL POINT", fill="#FFFFFF", font=self.font_header)
-        
-        # Body
-        title = scene_data["title"]
-        draw.text((60, 150), title, fill=self.COLORS["warning"], font=self.font_header)
-        
-        y_offset = 250
-        for bullet in scene_data.get("bullets", []):
-            draw.text((100, y_offset), f"! {bullet}", fill=self.COLORS["text"], font=self.font_body)
-            y_offset += 60
-            
         img.save(output_path)
         return output_path
 
@@ -144,7 +128,7 @@ class SlideRenderer:
         if not table_data:
             draw.text((100, 300), "No table data available", fill='red', font=self.font_body)
         else:
-            x_start, y_start = 100, 180
+            x_start, y_start = 100, 150
             col_width = (self.width - 200) // len(table_data[0]) if table_data[0] else 100
             
             for row_idx, row in enumerate(table_data[:10]):

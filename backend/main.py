@@ -5,7 +5,7 @@ import os
 import uuid
 import shutil
 import asyncio
-from app.engine.core import AutomatedTrainingEngine
+from app.core.engine import AutomatedTrainingEngine
 
 app = FastAPI()
 

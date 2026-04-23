@@ -1,5 +1,5 @@
 import re
-from app.engine.transformer import TrainingTransformer
+from app.services.transformer import TrainingTransformer
 
 class SceneClassifier:
     """Classifies segmented topics and slide chunks into specific scene archetypes."""
@@ -17,20 +17,15 @@ class SceneClassifier:
                 return "IntroScene"
             # Fallback to ConceptScene if there's actual content to show
         
-        # 2. Critical/Warning
-        warning_keywords = [r"critical", r"warning", r"important", r"danger", r"hazard", r"must", r"do not"]
-        if any(re.search(kw, content_str, re.I) for kw in warning_keywords) or any(re.search(kw, title, re.I) for kw in warning_keywords):
-            return "WarningScene"
-            
-        # 3. Table (Only if substantial and No Bullets)
+        # 2. Table (Only if substantial and No Bullets)
         if slide_data.get("tables") and not bullets:
             return "TableScene"
             
-        # 4. Summary
+        # 3. Summary/Ending (Reserved but currently same as Concept)
         if topic_index == total_topics - 1:
-            return "SummaryScene"
+            return "ConceptScene"
             
-        # 5. Standard Concept
+        # 4. Standard Concept
         return "ConceptScene"
 
     @staticmethod

@@ -2,6 +2,7 @@ import fitz
 import re
 import ftfy
 from collections import Counter
+from .utils import DOCUMENT_NOISE_PATTERNS
 
 class TrainingContentCleaner:
     """Advanced cleanup for raw PDF text into training-ready content."""
@@ -67,35 +68,28 @@ class TrainingContentCleaner:
         """Determine if a block should be kept and clean its text."""
         text = text.strip()
         if not text: return None
+
+        # 1. Strict artifact removal
+        text = re.sub(r'Page \d+ of \d+', '', text, flags=re.I)
+        text = re.sub(r'Ref\.?\s*SOP.*', '', text, flags=re.I)
         
-        # 1. Check for detected headers/footers (Exact match)
-        if text in self.header_footers:
+        # 2. Check for detected headers/footers (Exact match)
+        if text.strip() in self.header_footers:
             return None
             
-        # 2. Check for normalized noise templates
+        # 3. Check for normalized noise templates
         if self._normalize(text) in self.noise_templates:
-            # INCREASED AGGRESSIVENESS:
-            # If it's a structural template found on multiple pages, it is VERY likely noise.
-            # We remove it regardless of margin if it's high confidence.
             return None
 
-        # 3. Check for specific page numbering / common noise patterns
-        # Use re.search instead of re.match to catch partial matches in margins
-        page_patterns = [
-            r'Page\s+\d+', r'\d+\s+of\s+\d+', 
-            r'Ref\.\s+SOP\s+No\.', r'^\d+$', 
-            r'Confidential', r'Property of',
-            r'INVESTIGATION REPORT', r'DEVIATION No\.'
-        ]
-        if any(re.search(p, text, re.I) for p in page_patterns):
-            # Only remove if it's in the margin (Safety for patterns)
+        # 4. Check for specific page numbering / common noise patterns
+        if any(re.search(p, text, re.I) for p in DOCUMENT_NOISE_PATTERNS):
             if bbox[1] < page_height * 0.15 or bbox[3] > page_height * 0.85:
                 return None
 
-        # 4. Use ftfy to fix encoding issues and mojibake
+        # 5. Fix encoding and symbols
         text = ftfy.fix_text(text)
         
-        # 5. Replace special hyphens and other problematic characters for rendering
+        # 6. Replace special hyphens and problematic characters
         special_chars = {
             '\u2011': '-', '\u2010': '-', '\u2013': '-', '\u2014': '--',
             '\u2018': "'", '\u2019': "'", '\u201c': '"', '\u201d': '"',
@@ -104,8 +98,9 @@ class TrainingContentCleaner:
         for char, replacement in special_chars.items():
             text = text.replace(char, replacement)
 
-        # 6. Remove common artifacts like repeated underscores, weird squares
-        text = text.replace('□', '')
-        text = re.sub(r'_{3,}', '', text)
+        # 7. FINAL STRICT CLEANING (Remove non-ASCII and collapse spaces)
+        text = re.sub(r'[^\x00-\x7F]+', ' ', text)  # remove weird chars
+        text = re.sub(r'\s+', ' ', text)
         
-        return text.strip()
+        cleaned = text.strip()
+        return cleaned if cleaned else None

@@ -64,7 +64,7 @@ function App() {
 
   return (
     <div className="container">
-      <h1>Doc Trainer</h1>
+      <h1>Pdf to Video</h1>
       <p>Automated Document-to-Training Video Engine</p>
 
       <div className="upload-box">
