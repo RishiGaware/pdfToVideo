@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./index.css";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 function App() {
   const [file, setFile] = useState(null);
@@ -11,7 +11,7 @@ function App() {
   const [message, setMessage] = useState("");
   const [videoUrl, setVideoUrl] = useState(null);
   const [error, setError] = useState(null);
-  
+
   const progressEndRef = useRef(null);
 
   const resetState = () => {
@@ -65,17 +65,19 @@ function App() {
           const res = await fetch(`${API_BASE}/status/${jobId}`);
           if (!res.ok) throw new Error("Polling failed");
           const data = await res.json();
-          
+
           setProgress(data.progress || 0);
           setMessage(data.message || "Initializing engine...");
-          
+
           if (data.status === "completed") {
             setStatus("completed");
             setVideoUrl(`${API_BASE}${data.video_url}`);
             clearInterval(interval);
           } else if (data.status === "failed") {
             setStatus("failed");
-            setError(data.error || "An unknown error occurred during generation.");
+            setError(
+              data.error || "An unknown error occurred during generation.",
+            );
             clearInterval(interval);
           }
         } catch (err) {
@@ -88,15 +90,32 @@ function App() {
 
   useEffect(() => {
     if (status === "processing" && progressEndRef.current) {
-        progressEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      progressEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [progress, status]);
 
   return (
     <div className="container">
       <div className="header">
-        <h1>Doc2Video Pro</h1>
-        <div className="subtitle">Automated Document-to-Training Video Engine</div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "15px",
+            marginBottom: "10px",
+          }}
+        >
+          <img
+            src="/icon.png"
+            alt="Doc2Video Pro Icon"
+            style={{ width: "50px", height: "50px", borderRadius: "10px" }}
+          />
+          <h1 style={{ margin: 0 }}>Doc2Video Pro</h1>
+        </div>
+        <div className="subtitle">
+          Automated Document-to-Training Video Engine
+        </div>
       </div>
 
       {!status || status === "failed" || status === "completed" ? (
@@ -106,12 +125,10 @@ function App() {
             <div className="card-icon">📄</div>
             <div className="card-title">Test Example SOP</div>
             <div className="card-desc">
-              Generate a training module using the pre-loaded Compressed Air-GAS Validation SOP. No upload required.
+              Generate a training module using the pre-loaded Compressed Air-GAS
+              Validation SOP. No upload required.
             </div>
-            <button 
-              className="btn" 
-              onClick={handleDefaultSOP}
-            >
+            <button className="btn" onClick={handleDefaultSOP}>
               Generate from Example
             </button>
           </div>
@@ -121,7 +138,8 @@ function App() {
             <div className="card-icon">📤</div>
             <div className="card-title">Upload Custom SOP</div>
             <div className="card-desc">
-              Transform your own unstructured PDF standard operating procedure into an interactive video.
+              Transform your own unstructured PDF standard operating procedure
+              into an interactive video.
             </div>
             <div className="file-input-wrapper">
               <div className="file-custom">
@@ -158,7 +176,11 @@ function App() {
         </div>
       )}
 
-      {error && <div className="error"><strong>Engine Failure:</strong> {error}</div>}
+      {error && (
+        <div className="error">
+          <strong>Engine Failure:</strong> {error}
+        </div>
+      )}
 
       {videoUrl && (
         <div className="video-container">
