@@ -119,7 +119,7 @@ function App() {
         </div>
       </div>
 
-      {!status || status === "failed" || status === "completed" ? (
+      {!status || status === "failed" || status === "completed" || status === "processing" ? (
         <div className="dashboard">
           {/* Action Card 1: Default SOP */}
           <div className="action-card">
@@ -129,8 +129,16 @@ function App() {
               Generate a training module using the pre-loaded Compressed Air-GAS
               Validation SOP. No upload required.
             </div>
-            <button className="btn" onClick={handleDefaultSOP}>
-              Generate from Example
+            <button
+              className="btn"
+              onClick={handleDefaultSOP}
+              disabled={status === "processing"}
+            >
+              {status === "processing" ? (
+                <div className="spinner"></div>
+              ) : (
+                "Generate from Example"
+              )}
             </button>
           </div>
 
@@ -150,14 +158,19 @@ function App() {
                 type="file"
                 accept=".pdf"
                 onChange={(e) => setFile(e.target.files[0])}
+                disabled={status === "processing"}
               />
             </div>
             <button
               className="btn btn-secondary"
               onClick={handleUpload}
-              disabled={!file}
+              disabled={!file || status === "processing"}
             >
-              Upload & Generate
+              {status === "processing" && file ? (
+                <div className="spinner"></div>
+              ) : (
+                "Upload & Generate"
+              )}
             </button>
           </div>
         </div>

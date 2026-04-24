@@ -159,6 +159,29 @@ body {
   color: #1e293b;
 }
 
+/* Spinner for buttons */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+  margin: 0 auto;
+}
+
+.btn-secondary .spinner {
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-top-color: #475569;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
 .file-input-wrapper {
   width: 100%;
   position: relative;

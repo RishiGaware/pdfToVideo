@@ -55,24 +55,24 @@ async def run_training_engine(job_id, pdf_path):
 @app.post("/process_default")
 async def process_default(background_tasks: BackgroundTasks):
     job_id = str(uuid.uuid4())[:8]
-    default_pdf = os.path.join(TEMP_DIR, "16. Validation SOP for Compressed Air-GAS Revision.03 130219 (1).pdf")
     
-    if not os.path.exists(default_pdf):
-        raise HTTPException(status_code=404, detail=f"Default PDF not found at {default_pdf}")
+    source_video = os.path.join(TEMP_DIR, "final_training (3).mp4")
+    output_dir = os.path.join(OUTPUTS_DIR, job_id)
+    os.makedirs(output_dir, exist_ok=True)
+    dest_video = os.path.join(output_dir, "final_training.mp4")
+    
+    if os.path.exists(source_video):
+        shutil.copyfile(source_video, dest_video)
         
-    job_pdf_path = os.path.join(TEMP_DIR, f"{job_id}.pdf")
-    shutil.copyfile(default_pdf, job_pdf_path)
-    
     jobs[job_id] = {
-        "status": "pending",
-        "progress": 0,
-        "message": "Starting default job...",
-        "video_url": None,
+        "status": "completed",
+        "progress": 100,
+        "message": "Video loaded from cache.",
+        "video_url": f"/outputs/{job_id}/final_training.mp4",
         "error": None,
         "filename": "16. Validation SOP for Compressed Air-GAS Revision.03 130219 (1).pdf"
     }
     
-    background_tasks.add_task(run_training_engine, job_id, job_pdf_path)
     return {"job_id": job_id, "status": "processing"}
 
 @app.post("/upload")
