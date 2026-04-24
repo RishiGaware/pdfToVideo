@@ -161,6 +161,7 @@ class AutomatedTrainingEngine:
             temp_audiofile=temp_audio,
             remove_temp=True,
             preset="ultrafast",
+            ffmpeg_params=["-movflags", "+faststart"],
             threads=1, # Single thread is safer on Windows for the final muxing stage
             logger=render_logger
         )

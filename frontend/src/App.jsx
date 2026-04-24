@@ -95,7 +95,7 @@ function App() {
   return (
     <div className="container">
       <div className="header">
-        <h1>IntelDoc Trainer</h1>
+        <h1>Doc2Video Pro</h1>
         <div className="subtitle">Automated Document-to-Training Video Engine</div>
       </div>
 
