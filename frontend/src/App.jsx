@@ -109,7 +109,7 @@ function App() {
         >
           <img
             src="/icon.png"
-            alt="Doc2Video Pro Icon"
+            alt="Doc2Vid Pro Icon"
             style={{ width: "80px", height: "80px", borderRadius: "10px" }}
           />
           <h1 style={{ margin: 0 }}>Doc2Video Pro</h1>
