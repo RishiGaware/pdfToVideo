@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+
 import "./index.css";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -109,7 +110,7 @@ function App() {
           <img
             src="/icon.png"
             alt="Doc2Video Pro Icon"
-            style={{ width: "50px", height: "50px", borderRadius: "10px" }}
+            style={{ width: "80px", height: "80px", borderRadius: "10px" }}
           />
           <h1 style={{ margin: 0 }}>Doc2Video Pro</h1>
         </div>
