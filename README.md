@@ -2,7 +2,7 @@
 
 An AI-powered, full-stack application that transforms complex, unstructured PDF documents—specifically Standard Operating Procedures (SOPs)—into interactive, professional, narrated training videos. 
 
-> [!CAUTION]
+> [!CAUTION] 
 > **Format Dependency Notice:** 
 > The document parsing and structural extraction engine inside this project is currently strictly tuned to process a *specific* SOP tabular format (provided as a sample in `backend/temp/16. Validation SOP for Compressed Air-GAS Revision.03 130219 (1).pdf`). If you intend to use this engine with entirely different document layouts or different manufacturer SOP headers/footers, you will need to customize the extraction zones and noise patterns in `backend/app/services/utils.py` and `analyzer.py` to match your specific requirements.
 
